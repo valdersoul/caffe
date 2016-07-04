@@ -1084,4 +1084,14 @@ void ReadSolverParamsFromTextFileOrDie(const string& param_file,
   UpgradeSolverAsNeeded(param_file, param);
 }
 
+// Read parameters from a string into a SolverParameter proto message.
+bool ReadSolverParamsFromTextString(const string& param_file,
+                                    SolverParameter* param) {
+  if (ReadProtoFromTextString(param_file, param)) {
+    UpgradeSolverAsNeeded(param_file, param);
+    return true;
+  }
+  return false;
+}
+
 }  // namespace caffe

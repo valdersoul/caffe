@@ -161,6 +161,36 @@ Solver<Dtype>* GetSolverFromFile(const string& filename) {
   return SolverRegistry<Dtype>::CreateSolver(param);
 }
 
+// Why is this implemented in the following way?
+// To creat a solver we requrie a (proto) net specification. This cannot
+// be extracted from an existing network, so instead we initialize the solver
+// and net from two proto strings, one for the solver and one for the net.
+Solver<Dtype>* GetSolverFromSolverNetStrings(const string& solver_param_str,
+                                const string& net_param_str) {
+  NetParameter* net_param_p = new NetParameter();
+  CHECK(ReadNetParamsFromTextString(net_param_str, net_param_p))
+    << "Failer to parse Net param string";
+
+  SolverParameter solver_param;
+  CHECK(ReadSolverParamsFromTextString(solver_param_str, &solver_param))
+      << "Failed to parse Solver param string";
+
+  // Check that we haven't specified a net yet to avoid overwriting confusion
+  const int num_train_nets = solver_param.has_net() +
+      solver_param.has_net_param() + solver_param.has_train_net() +
+      solver_param.has_train_net_param();
+  const string& field_names = "net, net_param, train_net, train_net_param";
+  CHECK_LE(num_train_nets, 1)
+      << "string SolverParameter must not specify a train net "
+      << "using one of these fields: " << field_names;
+
+  // Is this safe, protobuf takes control of net_param*
+  solver_param.set_allocated_net_param( net_param_p );
+
+  return SolverRegistry<Dtype>::CreateSolver(solver_param);
+}
+
+
 struct NdarrayConverterGenerator {
   template <typename T> struct apply;
 };
@@ -368,6 +398,10 @@ BOOST_PYTHON_MODULE(_caffe) {
 
   bp::def("get_solver", &GetSolverFromFile,
       bp::return_value_policy<bp::manage_new_object>());
+  bp::def("get_solver_net", &GetSolverFromSolverNetStrings,
+      bp::return_value_policy<bp::manage_new_object>());
+
+
 
   // vector wrappers for all the vector types we use
   bp::class_<vector<shared_ptr<Blob<Dtype> > > >("BlobVec")
